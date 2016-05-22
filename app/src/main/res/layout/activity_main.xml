@@ -10,8 +10,12 @@
     android:paddingBottom="@dimen/activity_vertical_margin"
     tools:context="com.kongdy.hasee.shperemenu_android.MainActivity">
 
-    <TextView
-        android:text="Hello World!"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <com.kongdy.hasee.shperemenu_android.view.SphereMenu
+        android:id="@+id/m_sphere_m"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true">
+    </com.kongdy.hasee.shperemenu_android.view.SphereMenu>
+
 </RelativeLayout>
