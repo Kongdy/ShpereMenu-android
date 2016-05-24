@@ -1,37 +1,35 @@
 package com.kongdy.hasee.shperemenu_android.view;
 
+import android.animation.PropertyValuesHolder;
+import android.animation.ValueAnimator;
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PixelFormat;
-import android.graphics.PorterDuff;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.RectF;
-import android.graphics.drawable.Drawable;
+import android.graphics.Point;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationSet;
+import android.view.animation.BounceInterpolator;
 import android.view.animation.TranslateAnimation;
-import android.widget.ImageView;
 import android.widget.Toast;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by kongdy on 2016/5/21.
  */
-public class SphereMenu extends ViewGroup {
+public class SphereMenu extends ViewGroup implements View.OnClickListener{
 
-    private Bitmap homeImageSrc;
-    private OnClickListener homeClick;
-    private List<View> mMatchParentChildren = new ArrayList<>();
+    private float radius = 0;
+    private MENU_STATUS MenuStatu = MENU_STATUS.CLOSE;
+    private View moveView;
+    private Point movePoint;
+
+    public enum MENU_STATUS{
+        OPEN,
+        CLOSE
+    }
 
     public SphereMenu(Context context) {
         super(context);initView();
@@ -46,34 +44,162 @@ public class SphereMenu extends ViewGroup {
     }
 
     private void initView() {
-        homeClick = new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                final int count = getChildCount();
-                if(count > 0) {
-                    for (int i = 1;i < getChildCount();i++) {
-                        final View view = getChildAt(i);
-                        final float x = view.getX();
-                        final float y = view.getY();
-//                        view.setFocusable(true);
-//                        view.setClickable(true);
-                        Log.d("sphere","home click");
-                        view.startAnimation(unfoldAnimation(x,y, (float) (Math.random()*50*i),60,i));
-                    }
-                }
-            }
-        };
-        notifyDataChanged();
+        setBackgroundColor(Color.argb(150,255,255,0));
+        movePoint = new Point();
     }
 
-    private Animation unfoldAnimation(float x,float y,float cx,float cy,int i) {
+    private void unfoldAnimation(final View view,int i) {
+        final float angle = (float) ((Math.PI/(getChildCount()))*i-Math.PI/2);
+        final float toX = (float) (Math.sin(angle)*radius);
+        final float toY = (float) (Math.cos(angle) *radius);
+        view.setAlpha(1f);
+        PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),view.getX()+toX);
+        PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y", view.getY(),view.getY()-toY);
+        ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderX,holderY);
+        animator.setInterpolator(new BounceInterpolator());
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                view.setX((Float) animation.getAnimatedValue("x"));
+                view.setY((Float) animation.getAnimatedValue("y"));
+                invalidate();
+            }
+        });
+        animator.setDuration(1000);
+        animator.start();
+//        final float speedX = 1000/toX;
+//        final float speedY = 1000/toY;
+//        final long unitTime = (long) (1000/radius);
+//        Thread thread = new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                float x = view.getX();
+//                float y = view.getY();
+//                while(x < orgX+toX && y < orgY+toY) {
+//                    long startTime = System.currentTimeMillis();
+//                    view.layout((int)(x+5),(int)(y+5),(int)(x+5+view.getMeasuredWidth())
+//                    ,(int)(y+5+view.getMeasuredHeight()));
+//                    Log.v("thread move","view.getX():"+view.getX()+",view.getY():"+view.getY());
+//                    x = view.getX();
+//                    y = view.getX();
+//                    long endTime = System.currentTimeMillis();
+//                    invalidate();
+//                    if(endTime - startTime < 50) {
+//                        try {
+//                            Thread.sleep(50-(endTime - startTime));
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//            }
+//        });
+//        thread.run();
+//        AnimationSet animationSet = new AnimationSet(true);
+//        Animation translateAnimation = new TranslateAnimation(0,toX,0,-toY);
+//        translateAnimation.setStartOffset(i*50);
+//        translateAnimation.setFillAfter(true);
+//        translateAnimation.setFillEnabled(true);
+//        animationSet.addAnimation(translateAnimation);
+//        animationSet.setDuration(1000);
+//        animationSet.setFillAfter(true);
+//        animationSet.setFillEnabled(true);
+//        animationSet.setInterpolator(new BounceInterpolator());
+//        animationSet.setAnimationListener(new Animation.AnimationListener() {
+//            @Override
+//            public void onAnimationStart(Animation animation) {
+//            }
+//
+//            @Override
+//            public void onAnimationEnd(Animation animation) {
+//                // update coord
+////                view.layout((int)(view.getX()+toX),(int)(view.getY()-toY),
+////                        (int)(view.getX()+toX+view.getMeasuredWidth())
+////                        ,(int)(view.getY()-toY+view.getMeasuredHeight()));
+//                view.layout((int)(view.getX()),(int)(view.getY()),
+//                        (int)(view.getX()+view.getMeasuredWidth())
+//                        ,(int)(view.getY()+view.getMeasuredHeight()));
+//                Log.v("ac","view.getLeft():"+view.getLeft()+",view.getTop():"+view.getTop());
+//            }
+//
+//            @Override
+//            public void onAnimationRepeat(Animation animation) {
+//            }
+//        });
+//        animationSet.setStartOffset((i*100)/getChildCount());
+        MenuStatu = MENU_STATUS.OPEN;
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction() & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_DOWN:
+                for (int i = 1;i < getChildCount();i++) {
+                    final View view = getChildAt(i);
+                    if(isCrash(view,event)) {
+                        Toast.makeText(getContext(),"touch position"+i,Toast.LENGTH_SHORT).show();
+                        moveView = view;
+                        movePoint.x = (int) event.getX();
+                        movePoint.y = (int) event.getY();
+                    }
+                }
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if(moveView != null) {
+                    final int tempX = (int) (event.getX()-movePoint.x);
+                    final int tempY = (int) (event.getY()-movePoint.y);
+                    moveView.layout((int)(moveView.getX()+tempX),(int)(moveView.getY()+tempY),
+                            (int)(moveView.getX()+moveView.getWidth()+tempX)
+                    ,(int)(moveView.getY()+moveView.getHeight()+tempY));
+                    movePoint.x = (int) event.getX();
+                    movePoint.y = (int) event.getY();
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+                moveView = null;
+                break;
+        }
+        return true;
+    }
+
+    public Animation backAnimation(int pos,float touchX,float touchY) {
+        float angle = (float) ((Math.PI/(getChildCount()))*pos-Math.PI/2);
+        float backX = (float) (Math.sin(angle)*radius);
+        float backY = (float) Math.cos(angle) *radius;
         AnimationSet animationSet = new AnimationSet(true);
-        Animation translateAnimation = new TranslateAnimation(x,x+cx,y,y-cy);
-        translateAnimation.setDuration(500);
-        translateAnimation.setFillAfter(true);
-        translateAnimation.setStartOffset((i*100)/getChildCount());
-        animationSet.addAnimation(translateAnimation);
+        Animation transAnimation = new TranslateAnimation(touchX,backX,touchY,backY);
+        animationSet.addAnimation(transAnimation);
+        animationSet.setDuration(500);
+        animationSet.setFillAfter(true);
         return animationSet;
+    }
+
+    public void foldAnimation(final View view, int i) {
+        final float angle = (float) ((Math.PI/(getChildCount()))*i-Math.PI/2);
+        final float fromX = (float) (Math.sin(angle)*radius);
+        final float fromY = (float) (Math.cos(angle) *radius);
+        PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),view.getX()-fromX);
+        PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y", view.getY(),view.getY()+fromY);
+        PropertyValuesHolder holderAlpha = PropertyValuesHolder.ofFloat("a", 1f,0f);
+        ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderX,holderY,holderAlpha);
+        animator.setInterpolator(new BounceInterpolator());
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                view.setX((Float) animation.getAnimatedValue("x"));
+                view.setY((Float) animation.getAnimatedValue("y"));
+                float alpha = (Float) animation.getAnimatedValue("a");
+                if(alpha > 0) {
+                    view.setAlpha(alpha);
+                } else {
+                    view.setAlpha(0);
+                }
+                invalidate();
+            }
+        });
+        animator.setDuration(1000);
+        animator.start();
+        MenuStatu = MENU_STATUS.CLOSE;
     }
 
 
@@ -95,162 +221,61 @@ public class SphereMenu extends ViewGroup {
 
     private void layoutChildren() {
         final int count = getChildCount();
-
+        int childWidth = 0;
         for (int i = 0;i < count;i++) {
             final View child = getChildAt(i);
             if(child.getVisibility() != View.GONE) {
-//                final int width = child.getMeasuredWidth();
-//                final int height = child.getMeasuredHeight();
-                final int width = child.getMeasuredWidth() != 0 && child.getMeasuredWidth() < getMeasuredWidth()
-                        ?child.getMeasuredWidth():getMeasuredWidth();
-                final int height = child.getMeasuredHeight() != 0 && child.getMeasuredHeight() < getMeasuredHeight()
-                        ?child.getMeasuredHeight():getMeasuredHeight();
-                child.layout(0,0,width,height);
+                final int width =  child.getMeasuredWidth();
+                final int height = child.getMeasuredHeight();
+                int l = (getMeasuredWidth()-width)/2;
+                int t = (getMeasuredHeight()-height);
+                childWidth = width;
+                child.layout(l,t,l+width,t+height);
+            }
+        }
+        radius = getMeasuredWidth()/2-childWidth;
+        CircleImageView homeBtn = (CircleImageView) getChildAt(0);
+        homeBtn.setOnClickListener(this);
+    }
+
+    @Override
+    public void onClick(View v) {
+        Log.d("sphere","home click");
+        final int count = getChildCount();
+        if(count > 1) {
+            if(MenuStatu == MENU_STATUS.CLOSE) {
+                for (int i = 1;i < getChildCount();i++) {
+                    final View view = getChildAt(i);
+                    unfoldAnimation(view,i);
+                }
+            } else {
+                for (int i = 1;i < getChildCount();i++) {
+                    final View view = getChildAt(i);
+                    foldAnimation(view,i);
+                }
             }
         }
     }
 
-    public void notifyDataChanged() {
-        CircleImageView homeImage = new CircleImageView(getContext());
-        addView(homeImage);
-        homeImage.setOnClickListener(homeClick);
+    public boolean isOpen() {
+        return MenuStatu == MENU_STATUS.OPEN;
     }
-
-
-    public void setHomeImageSrc(Bitmap bm) {
-        this.homeImageSrc = bm;
-    }
-
-    public void setHomeImageSrc(int resId) {
-        setHomeImageSrc(BitmapFactory.decodeResource(getResources(),resId));
-    }
-
-//
-//    @Override
-//    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-//       // super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-//        int count = getChildCount();
-//        mMatchParentChildren.clear();
-//
-//        int maxHeight = 0;
-//        int maxWidth = 0;
-//        int childState = 0;
-//
-//        for (int i = 0;i < count;i++) {
-//            final View child = getChildAt(i);
-//            if(child.getVisibility() != GONE) {
-//                measureChild(child,widthMeasureSpec,heightMeasureSpec);
-//                maxWidth = Math.max(maxWidth,child.getMeasuredWidth());
-//                maxHeight = Math.max(maxHeight,child.getMeasuredHeight());
-//                childState = combineMeasuredStates(childState,child.getMeasuredState());
-//                mMatchParentChildren.add(child);
-//            }
-//        }
-//
-//        maxWidth += getPaddingLeft()+getPaddingRight();
-//        maxHeight += getPaddingTop()+getPaddingBottom();
-//
-//        maxWidth = Math.max(maxWidth,getSuggestedMinimumWidth());
-//        maxHeight = Math.max(maxHeight,getSuggestedMinimumHeight());
-//
-//        setMeasuredDimension(resolveSizeAndState(maxWidth,widthMeasureSpec,childState)
-//        ,resolveSizeAndState(maxHeight,heightMeasureSpec,childState << MEASURED_HEIGHT_STATE_SHIFT));
-//
-//        count = mMatchParentChildren.size();
-//        if(count > 1) {
-//            for (int i = 0;i < count;i++) {
-//                final View child = mMatchParentChildren.get(i);
-//                final int childWidthMeasureSpec;
-//                final int childHeightMeasureSpec;
-//                final int width = Math.max(0,getMeasuredWidth()-getPaddingLeft()-getPaddingRight());
-//                childWidthMeasureSpec = MeasureSpec.makeMeasureSpec(width,MeasureSpec.EXACTLY);
-//                final int height = Math.max(0,getMeasuredHeight()-getPaddingTop()-getPaddingBottom());
-//                childHeightMeasureSpec = MeasureSpec.makeMeasureSpec(height,MeasureSpec.EXACTLY);
-//                child.measure(childWidthMeasureSpec,childHeightMeasureSpec);
-//            }
-//        }
-//
-//    }
 
     /**
-     * cricle image view
+     * 检测触摸点和空间是否有接触
+     * @return
      */
-    private class CircleImageView extends ImageView {
-
-        private Bitmap ImageSrc;
-
-        private Paint defaultPaint;
-        private RectF clipOval;
-        private PorterDuffXfermode src_out_mode;
-
-        public CircleImageView(Context context) {
-            super(context);
-            initTools();
+    private boolean isCrash(View v,MotionEvent event) {
+        final float touchX = event.getX();
+        final float touchY = event.getY();
+        final float x = v.getX();
+        final float y = v.getY();
+        final int w = v.getMeasuredWidth();
+        final int h = v.getMeasuredHeight();
+        Log.v("info","touchX:"+touchX+",touchY:"+touchY+",w:"+w+",h:"+h+",x:"+x+",y:"+y);
+        if(touchX > x && touchX < x+w && touchY > y && touchY < y + h) {
+            return true;
         }
-
-        private void initTools() {
-            defaultPaint = new Paint();
-            defaultPaint.setAntiAlias(true);
-            src_out_mode = new PorterDuffXfermode(PorterDuff.Mode.SRC_OUT);
-            defaultPaint.setColor(Color.argb(150,10,10,10));
-
-            clipOval = new RectF();
-        }
-
-        public void setMyImageRes(int resId) {
-            ImageSrc = BitmapFactory.decodeResource(getResources(),resId);
-            setImageBitmap(ImageSrc);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            if(ImageSrc == null) {
-                ImageSrc = getImageBitmap();
-            }
-            canvas.saveLayer(0,0,getMeasuredWidth(),getMeasuredHeight(),defaultPaint
-            ,Canvas.ALL_SAVE_FLAG);
-            if(ImageSrc != null) {
-                canvas.drawBitmap(ImageSrc,null,clipOval,defaultPaint);
-                defaultPaint.setXfermode(src_out_mode);
-                canvas.drawArc(clipOval,0f,360f,true,defaultPaint);
-                defaultPaint.setXfermode(null);
-            } else {
-                canvas.drawArc(clipOval,0f,360f,true,defaultPaint);
-            }
-            canvas.restore();
-           // super.onDraw(canvas);
-
-        }
-
-        @Override
-        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-            int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-            int heightSize = MeasureSpec.getSize(heightMeasureSpec);
-            clipOval.left = 0;
-            clipOval.top = 0;
-            clipOval.right = widthSize;
-            clipOval.bottom = heightSize;
-        }
-
-        public Bitmap getImageBitmap() {
-            if(ImageSrc == null) {
-                final int width = getMeasuredWidth();
-                final int height = getMeasuredHeight();
-                Drawable dra = getDrawable();
-                if(dra == null) {
-                    return null;
-                }
-                Bitmap bitmap = Bitmap.createBitmap(width,height
-                        ,dra.getOpacity() != PixelFormat.OPAQUE ? Bitmap.Config.ARGB_8888: Bitmap.Config.ARGB_8888);
-
-                Canvas canvas = new Canvas(bitmap);
-                dra.setBounds(0,0,width,height);
-                dra.draw(canvas);
-                return bitmap;
-            } else {
-                return ImageSrc;
-            }
-        }
+        return false;
     }
 }
