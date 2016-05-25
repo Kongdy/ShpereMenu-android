@@ -7,10 +7,12 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.BounceInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.Toast;
 
 import java.util.HashMap;
@@ -30,6 +32,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     private Map<Integer,Integer> movingPoss; // moving view
     private Map<Integer,Point> movePoints;
     CircleImageView homeBtn; // home btn
+    private boolean isFolding;
 
     public enum MENU_STATUS{
         OPEN,
@@ -59,10 +62,12 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         final float toX = (float) (Math.sin(angle)*radius);
         final float toY = (float) (Math.cos(angle) *radius);
         view.setAlpha(1f);
-        PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),view.getX()+toX);
-        PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y", view.getY(),view.getY()-toY);
+        final int l = (int) ((getMeasuredWidth()-view.getMeasuredWidth())/2+toX);
+        final int t = (int) (getMeasuredHeight()-view.getMeasuredHeight()-toY);
+        PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),l);
+        PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y", view.getY(),t);
         ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderX,holderY);
-        animator.setInterpolator(new BounceInterpolator());
+        animator.setInterpolator(new OvershootInterpolator());
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
@@ -79,8 +84,8 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             public void onAnimationEnd(Animator animation) {
                 homeBtn.setEnabled(true);
                 view.setEnabled(true);
-                view.setFocusable(true);
-                view.setClickable(true);
+                MenuStatu = MENU_STATUS.OPEN; // when animation is end ,reset status
+                isFolding = false;
             }
             @Override
             public void onAnimationCancel(Animator animation) {
@@ -89,9 +94,9 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             public void onAnimationRepeat(Animator animation) {
             }
         });
-        animator.setDuration(1000);
+        animator.setDuration(200);
         animator.start();
-        MenuStatu = MENU_STATUS.OPEN;
+
     }
 
     @Override
@@ -101,55 +106,63 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             case MotionEvent.ACTION_POINTER_DOWN:
                 for (int i = 1;i < getChildCount();i++) {
                     final View view = getChildAt(i);
-                    if(isCrash(view,event) && !movingPoss.containsValue(i)) {
+                    if(isCrash(view,event) && !movingPoss.containsValue(i) && view.isEnabled()) {
                         final int actionIndex = event.getActionIndex();
+                        final int pointId = event.getPointerId(actionIndex); // pointId is safe
                         Point tempP = new Point();
-                        tempP.x = (int) event.getX(actionIndex);
+                        tempP.x = (int) event.getX(actionIndex); // actionIndex is final ,no need to findPointerIndex
                         tempP.y = (int) event.getY(actionIndex);
-                        movingPoss.put(actionIndex,i);
-                        movePoints.put(actionIndex,tempP);
+                        movingPoss.put(pointId,i);
+                        movePoints.put(pointId,tempP);
                     }
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
                 Set<Integer> keys = movingPoss.keySet();
                 for (int i:keys) {
-                    beginDrag = true;
-                    final int tempX = (int) (event.getX(i) - movePoints.get(i).x);
-                    final int tempY = (int) (event.getY(i) - movePoints.get(i).y);
+                    // get actionIndex by pointerId
+                    final int touchIndex = event.findPointerIndex(i);
+                    float touchX = event.getX(touchIndex);
+                    float touchY = event.getY(touchIndex);
                     final View view = getChildAt(movingPoss.get(i));
+                    final int tempX = (int) (touchX - movePoints.get(i).x);
+                    final int tempY = (int) (touchY - movePoints.get(i).y);
+                    if(tempX < 1 && tempY < 1 && !beginDrag) { // no drag
+                        break;
+                    }
+                    beginDrag = true;
                     if (view != null) {
                         int l = view.getLeft();
                         int t = view.getTop();
-                        view.layout(l + tempX, t + tempY,
-                                l + view.getMeasuredWidth() + tempX
-                                , t + view.getMeasuredHeight() + tempY);
-                        movePoints.get(i).x = (int) event.getX(i);
-                        movePoints.get(i).y = (int) event.getY(i);
+                        int r = view.getRight();
+                        int b = view.getBottom();
+                        view.layout(l + tempX, t + tempY,r + tempX
+                                ,b + tempY);
+                        movePoints.get(i).x = (int) touchX;
+                        movePoints.get(i).y = (int) touchY;
                     }
                 }
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
-                final int lostTouchIndex = event.getActionIndex();
-                if(movingPoss.containsKey(lostTouchIndex)) {
-                    final int pos = movingPoss.get(lostTouchIndex);
+                final int currentLostPointId = event.getPointerId(event.getActionIndex());
+                if(movingPoss.containsKey(currentLostPointId)) {
+                    final int pos = movingPoss.get(currentLostPointId);
                     final View view = getChildAt(pos);
                     if(movingPoss.size() <= 1 && !beginDrag) {
                         if(listener != null) {
                             listener.onClick(view,pos);
                         }
-                        closeMenu();
                     } else if(beginDrag){
                         backAnimation(view,view.getX(),view.getY(),pos);
                     }
-                    movingPoss.remove(lostTouchIndex);
-                    movePoints.remove(lostTouchIndex);
+                    movingPoss.remove(currentLostPointId);
+                    movePoints.remove(currentLostPointId);
                 }
-                if(movingPoss.size() < 1) {
+                if(movingPoss.isEmpty()) {
+                    movePoints.clear();
                     beginDrag = false;
                 }
-
                 break;
         }
         return true;
@@ -162,44 +175,46 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         /*
          * calculate org pos
          */
-        int l = (int) ((getMeasuredWidth()-v.getMeasuredWidth())/2+backX);
-        int t = (int) (getMeasuredHeight()-v.getMeasuredHeight()-backY);
+        final int l = (int) ((getMeasuredWidth()-v.getMeasuredWidth())/2+backX);
+        final int t = (int) (getMeasuredHeight()-v.getMeasuredHeight()-backY);
 
         PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x",touchX,l);
         PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y",touchY,t);
 
         ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderX,holderY);
         animator.setInterpolator(new BounceInterpolator());
-        animator.setDuration(800);
+        animator.setDuration(500);
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                float x = (float) animation.getAnimatedValue("x");
-                float y = (float) animation.getAnimatedValue("y");
-                v.setX(x);
-                v.setY(y);
-                invalidate();
+                if(isFolding) {
+                    animation.cancel();
+                } else {
+                    float x = (float) animation.getAnimatedValue("x");
+                    float y = (float) animation.getAnimatedValue("y");
+                    v.setX(x);
+                    v.setY(y);
+                    invalidate();
+                }
             }
         });
         animator.start();
     }
 
     public void foldAnimation(final View view, int i) {
-        final float angle = (float) ((Math.PI/(getChildCount()))*i-Math.PI/2);
-        final float fromX = (float) (Math.sin(angle)*radius);
-        final float fromY = (float) (Math.cos(angle)*radius);
-        PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),view.getX()-fromX);
-        PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y", view.getY(),view.getY()+fromY);
+        final int l = (getMeasuredWidth()-view.getMeasuredWidth())/2;
+        final int t = getMeasuredHeight()-view.getMeasuredHeight();
+        PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),l);
+        PropertyValuesHolder holderY = PropertyValuesHolder.ofFloat("y", view.getY(),t);
         PropertyValuesHolder holderAlpha = PropertyValuesHolder.ofFloat("a", 1f,0f);
         ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderX,holderY,holderAlpha);
-        animator.setInterpolator(new BounceInterpolator());
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 view.setX((Float) animation.getAnimatedValue("x"));
                 view.setY((Float) animation.getAnimatedValue("y"));
                 float alpha = (Float) animation.getAnimatedValue("a");
-                if(alpha > 0) {
+                if(alpha >= 0) {
                     view.setAlpha(alpha);
                 } else {
                     view.setAlpha(0);
@@ -214,10 +229,9 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             @Override
             public void onAnimationEnd(Animator animation) {
                 homeBtn.setEnabled(true);
-                view.setEnabled(false);
                 view.setVisibility(View.GONE);
-                view.setFocusable(false);
-                view.setClickable(false);
+                MenuStatu = MENU_STATUS.CLOSE;
+                isFolding = false;
             }
             @Override
             public void onAnimationCancel(Animator animation) {
@@ -226,9 +240,8 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             public void onAnimationRepeat(Animator animation) {
             }
         });
-        animator.setDuration(1000);
+        animator.setDuration(200);
         animator.start();
-        MenuStatu = MENU_STATUS.CLOSE;
     }
 
 
@@ -260,6 +273,9 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
                 int t = (getMeasuredHeight()-height);
                 childWidth = width;
                 child.layout(l,t,l+width,t+height);
+                if(i > 0) {
+                    child.setEnabled(false);
+                }
             }
         }
         radius = getMeasuredWidth()/2-childWidth;
@@ -271,7 +287,6 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     public void onClick(View v) {
         final int count = getChildCount();
         if(count > 1) {
-            homeBtn.setEnabled(false);
             if(MenuStatu == MENU_STATUS.CLOSE) {
                 openMenu();
             } else {
@@ -302,13 +317,18 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     }
 
     public void closeMenu() {
+        isFolding = true;
+        homeBtn.setEnabled(false);
         for (int i = 1;i < getChildCount();i++) {
             final View view = getChildAt(i);
+            view.setEnabled(false);
             foldAnimation(view,i);
         }
     }
 
     public void openMenu() {
+        isFolding = true;
+        homeBtn.setEnabled(false);
         for (int i = 1;i < getChildCount();i++) {
             final View view = getChildAt(i);
             view.setVisibility(View.VISIBLE);

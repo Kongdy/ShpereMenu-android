@@ -24,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
         listener = new SphereMenu.onSphereMenuItemClickListener() {
             @Override
             public void onClick(View v, int pos) {
+                m_sphere_m.closeMenu();
                 Log.v("main_click","pos:"+pos);
                 Toast.makeText(getApplicationContext(),"click pos:"+pos,Toast.LENGTH_SHORT).show();
             }
