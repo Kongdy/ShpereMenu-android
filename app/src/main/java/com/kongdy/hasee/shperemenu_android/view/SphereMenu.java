@@ -6,6 +6,8 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -314,6 +316,44 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             return true;
         }
         return false;
+    }
+
+    /**
+     *  Compatible old sdk
+     * @param view
+     * @return
+     */
+    private Rect getViewRect(View view) {
+        final int l = view.getLeft();
+        final int t = view.getTop();
+        final int r = view.getRight();
+        final int b = view.getBottom();
+        return new Rect(l,t,r,b);
+    }
+
+    /**
+     * Compatible old sdk
+     * @param view
+     * @return
+     */
+    private RectF getViewRectF(View view) {
+        final int l = view.getLeft();
+        final int t = view.getTop();
+        final int r = view.getRight();
+        final int b = view.getBottom();
+        return new RectF(l,t,r,b);
+    }
+
+    /**
+     * judge both View whether is intersect
+     * @param view1
+     * @param view2
+     * @return
+     */
+    public boolean isViewIntersect(View view1,View view2) {
+        Rect rect1 = getViewRect(view1);
+        Rect rect2 = getViewRect(view2);
+        return rect1.intersect(rect2);
     }
 
     public void closeMenu() {
