@@ -86,22 +86,19 @@ public class CircleImageView extends ImageView {
     }
 
     public Bitmap getImageBitmap() {
-        if(ImageSrc == null) {
-            final int width = getMeasuredWidth();
-            final int height = getMeasuredHeight();
-            Drawable dra = getDrawable();
-            if(dra == null) {
-                return null;
-            }
-            Bitmap bitmap = Bitmap.createBitmap(width,height
-                    ,dra.getOpacity() != PixelFormat.OPAQUE ? Bitmap.Config.ARGB_8888: Bitmap.Config.ARGB_8888);
-
-            Canvas canvas = new Canvas(bitmap);
-            dra.setBounds(0,0,width,height);
-            dra.draw(canvas);
-            return bitmap;
-        } else {
-            return ImageSrc;
+        final int width = getMeasuredWidth();
+        final int height = getMeasuredHeight();
+        Drawable dra = getDrawable();
+        if(dra == null) {
+            return null;
         }
+        Bitmap bitmap = Bitmap.createBitmap(width,height
+                ,dra.getOpacity() != PixelFormat.OPAQUE ? Bitmap.Config.ARGB_8888: Bitmap.Config.RGB_565);
+
+        Canvas canvas = new Canvas(bitmap);
+        dra.setBounds(0,0,width,height);
+        dra.draw(canvas);
+        return bitmap;
+
     }
 }

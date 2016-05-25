@@ -59,7 +59,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         movingPoss = new HashMap<>();
     }
 
-    private void unfoldAnimation(final View view,int i) {
+    private void unfoldAnimation(final View view, final int i) {
         final float angle = (float) ((Math.PI/(getChildCount()))*i-Math.PI/2);
         final float toX = (float) (Math.sin(angle)*radius);
         final float toY = (float) (Math.cos(angle) *radius);
@@ -73,8 +73,8 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                view.setX((Float) animation.getAnimatedValue("x"));
-                view.setY((Float) animation.getAnimatedValue("y"));
+                ViewMoveWithJudgeCrash(view,(Float) animation.getAnimatedValue("x")
+                ,(Float) animation.getAnimatedValue("y"),i,false);
                 invalidate();
             }
         });
@@ -98,7 +98,6 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         });
         animator.setDuration(200);
         animator.start();
-
     }
 
     @Override
@@ -170,7 +169,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         return true;
     }
 
-    public void backAnimation(final View v,float touchX,float touchY,int pos) {
+    public void backAnimation(final View v, float touchX, float touchY, final int pos) {
         float angle = (float) ((Math.PI/(getChildCount()))*pos-Math.PI/2);
         float backX = (float) (Math.sin(angle)*radius);
         float backY = (float) (Math.cos(angle) *radius);
@@ -194,8 +193,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
                 } else {
                     float x = (float) animation.getAnimatedValue("x");
                     float y = (float) animation.getAnimatedValue("y");
-                    v.setX(x);
-                    v.setY(y);
+                    ViewMoveWithJudgeCrash(v,x,y,pos,true);
                     invalidate();
                 }
             }
@@ -203,7 +201,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         animator.start();
     }
 
-    public void foldAnimation(final View view, int i) {
+    public void foldAnimation(final View view, final int i) {
         final int l = (getMeasuredWidth()-view.getMeasuredWidth())/2;
         final int t = getMeasuredHeight()-view.getMeasuredHeight();
         PropertyValuesHolder holderX = PropertyValuesHolder.ofFloat("x", view.getX(),l);
@@ -213,8 +211,8 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
-                view.setX((Float) animation.getAnimatedValue("x"));
-                view.setY((Float) animation.getAnimatedValue("y"));
+                ViewMoveWithJudgeCrash(view,(Float) animation.getAnimatedValue("x")
+                ,(Float) animation.getAnimatedValue("y"),i,false);
                 float alpha = (Float) animation.getAnimatedValue("a");
                 if(alpha >= 0) {
                     view.setAlpha(alpha);
@@ -326,23 +324,11 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     private Rect getViewRect(View view) {
         final int l = view.getLeft();
         final int t = view.getTop();
-        final int r = view.getRight();
-        final int b = view.getBottom();
-        return new Rect(l,t,r,b);
+//        final int r = view.getRight();
+//        final int b = view.getBottom();
+        return new Rect(l,t,t+view.getMeasuredWidth(),t+view.getMeasuredHeight());
     }
 
-    /**
-     * Compatible old sdk
-     * @param view
-     * @return
-     */
-    private RectF getViewRectF(View view) {
-        final int l = view.getLeft();
-        final int t = view.getTop();
-        final int r = view.getRight();
-        final int b = view.getBottom();
-        return new RectF(l,t,r,b);
-    }
 
     /**
      * judge both View whether is intersect
@@ -354,6 +340,27 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         Rect rect1 = getViewRect(view1);
         Rect rect2 = getViewRect(view2);
         return rect1.intersect(rect2);
+    }
+
+    /**
+     * judge whether have crash in move
+     * @param view
+     * @param x
+     * @param y
+     */
+    public void ViewMoveWithJudgeCrash(View view,float x,float y,int pos,boolean isDetectionCrash) {
+        view.setX(x);
+        view.setY(y);
+        if(isDetectionCrash) {
+            for (int i = 1;i < getChildCount();i++) {
+                if(i != pos) {
+                    final View staticView = getChildAt(i);
+                    if(isViewIntersect(staticView,view)) {
+                        Log.e("move","crash!!!!!!!!!!!!!!!!!!!!!!!!"+i);
+                    }
+                }
+            }
+        }
     }
 
     public void closeMenu() {
