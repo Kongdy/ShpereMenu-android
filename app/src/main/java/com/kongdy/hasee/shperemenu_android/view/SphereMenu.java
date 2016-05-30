@@ -7,15 +7,14 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.BounceInterpolator;
 import android.view.animation.OvershootInterpolator;
-import android.widget.Toast;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +34,10 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     private Map<Integer,Point> movePoints;
     CircleImageView homeBtn; // home btn
     private boolean isFolding;
+    private int orgWidth = -1;
+    private int orgHeight = -1;
+    private int maxWidth;
+    private int maxHeight;
 
     public enum MENU_STATUS{
         OPEN,
@@ -55,6 +58,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
 
     private void initView() {
         setBackgroundColor(Color.argb(150,255,255,0));
+        getBackground().setAlpha(0);
         movePoints = new HashMap<>();
         movingPoss = new HashMap<>();
     }
@@ -232,6 +236,9 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
                 view.setVisibility(View.GONE);
                 MenuStatu = MENU_STATUS.CLOSE;
                 isFolding = false;
+                if(i == getChildCount()-1) {
+                    scaleMinViewSize();
+                }
             }
             @Override
             public void onAnimationCancel(Animator animation) {
@@ -251,6 +258,7 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         for (int i = 0;i < count;i++) {
             measureChild(getChildAt(i),widthMeasureSpec,heightMeasureSpec);
         }
+
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
@@ -281,6 +289,19 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
         radius = getMeasuredWidth()/2-childWidth;
         homeBtn = (CircleImageView) getChildAt(0);
         homeBtn.setOnClickListener(this);
+        if(orgWidth == -1) {
+            orgWidth = getMeasuredWidth();
+            orgHeight = getMeasuredHeight();
+        }
+        initMaxSize();
+    }
+
+    private void initMaxSize() {
+        if(maxWidth <= 0) {
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            maxWidth = dm.widthPixels;
+            maxHeight = dm.heightPixels;
+        }
     }
 
     @Override
@@ -324,8 +345,6 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     private Rect getViewRect(View view) {
         final int l = view.getLeft();
         final int t = view.getTop();
-//        final int r = view.getRight();
-//        final int b = view.getBottom();
         return new Rect(l,t,t+view.getMeasuredWidth(),t+view.getMeasuredHeight());
     }
 
@@ -371,11 +390,10 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
             view.setEnabled(false);
             foldAnimation(view,i);
         }
+
     }
 
-    public void openMenu() {
-        isFolding = true;
-        homeBtn.setEnabled(false);
+    public void unfoldMenu() {
         for (int i = 1;i < getChildCount();i++) {
             final View view = getChildAt(i);
             view.setVisibility(View.VISIBLE);
@@ -390,5 +408,73 @@ public class SphereMenu extends ViewGroup implements View.OnClickListener{
     public interface onSphereMenuItemClickListener {
         void onClick(View v,int pos);
     }
+
+    private void openMenu() {
+        isFolding = true;
+        homeBtn.setEnabled(false);
+        final LayoutParams lp = getLayoutParams();
+        lp.width = maxWidth;
+        lp.height = maxHeight;
+        setLayoutParams(lp);
+        PropertyValuesHolder holderA = PropertyValuesHolder.ofInt("alpha",0,255);
+        ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderA);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                int tempAlpha = (int) animation.getAnimatedValue("alpha");
+                getBackground().setAlpha(tempAlpha);
+            }
+        });
+        animator.setDuration(200);
+        animator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+            }
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                unfoldMenu();
+            }
+            @Override
+            public void onAnimationCancel(Animator animation) {
+            }
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+            }
+        });
+        animator.start();
+    }
+
+    private void scaleMinViewSize() {
+        PropertyValuesHolder holderA = PropertyValuesHolder.ofInt("alpha",255,0);
+        ValueAnimator animator = ValueAnimator.ofPropertyValuesHolder(holderA);
+        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                int tempAlpha = (int) animation.getAnimatedValue("alpha");
+                getBackground().setAlpha(tempAlpha);
+            }
+        });
+        animator.setDuration(200);
+        animator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+            }
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                final  LayoutParams lp = getLayoutParams();
+                lp.width = orgWidth;
+                lp.height = orgHeight;
+                setLayoutParams(lp);
+            }
+            @Override
+            public void onAnimationCancel(Animator animation) {
+            }
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+            }
+        });
+        animator.start();
+    }
+
 
 }

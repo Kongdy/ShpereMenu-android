@@ -8,8 +8,8 @@
 
     <com.kongdy.hasee.shperemenu_android.view.SphereMenu
         android:id="@+id/m_sphere_m"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true">
         <com.kongdy.hasee.shperemenu_android.view.CircleImageView
